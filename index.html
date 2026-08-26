@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تست درگاه بانک سامان</title>
+
+  <!-- Better Persian font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Vazirmatn', Tahoma, sans-serif;
+      background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #1e293b;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 10px 40px rgba(37, 99, 235, 0.12);
+      border: 1px solid rgba(37, 99, 235, 0.08);
+    }
+
+    .logo {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      color: white;
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #64748b;
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+
+    label {
+      display: block;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #334155;
+      margin-bottom: 7px;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px 15px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 15px;
+      font-family: inherit;
+      margin-bottom: 18px;
+      transition: all 0.2s ease;
+      background: #f8fafc;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #2563eb;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 6px;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+    }
+
+    button:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .error {
+      display: none;
+      margin-top: 16px;
+      padding: 12px 14px;
+      background: #fef2f2;
+      color: #dc2626;
+      border-radius: 10px;
+      font-size: 13.5px;
+      border: 1px solid #fecaca;
+      text-align: center;
+    }
+
+    .note {
+      margin-top: 24px;
+      padding: 14px 16px;
+      background: #f1f5f9;
+      border-radius: 12px;
+      font-size: 13px;
+      color: #475569;
+      line-height: 1.7;
+    }
+
+    .note strong {
+      color: #1e293b;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">س</div>
+    <h1>تست درگاه بانک سامان</h1>
+    <p class="subtitle">پرداخت آزمایشی با سرویس FastAPI</p>
+
+    <form id="paymentForm">
+      <label for="amount">مبلغ (ریال)</label>
+      <input type="number" id="amount" value="10000" min="1000" required>
+
+      <label for="resNum">شماره سفارش (ResNum)</label>
+      <input type="text" id="resNum" placeholder="اختیاری - در صورت خالی بودن خودکار ساخته می‌شود">
+
+      <button type="submit" id="payBtn">پرداخت با بانک سامان</button>
+    </form>
+
+    <div class="error" id="errorBox"></div>
+
+    <div class="note">
+      • مبلغ به <strong>ریال</strong> وارد شود.<br>
+      • پس از کلیک به صفحه امن درگاه سامان هدایت می‌شوید.<br>
+      • پس از پرداخت به آدرس <code>/callback</code> بازمی‌گردید.
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("paymentForm");
+    const payBtn = document.getElementById("payBtn");
+    const errorBox = document.getElementById("errorBox");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.style.display = "none";
+      payBtn.disabled = true;
+      payBtn.textContent = "در حال انتقال به درگاه...";
+
+      const amount = Number(document.getElementById("amount").value);
+      const resNum = document.getElementById("resNum").value.trim() || null;
+
+      try {
+        const response = await fetch("/saman/pay", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            amount: amount,
+            res_num: resNum
+          })
+        });
+
+        if (!response.ok) {
+          let message = "خطا در ایجاد پرداخت";
+          try {
+            const err = await response.json();
+            message = err.detail || message;
+          } catch (_) {}
+          throw new Error(message);
+        }
+
+        // Server returns HTML form that auto-submits to SEP
+        const html = await response.text();
+        document.open();
+        document.write(html);
+        document.close();
+
+      } catch (err) {
+        errorBox.textContent = err.message || "خطایی رخ داد. لطفا دوباره تلاش کنید.";
+        errorBox.style.display = "block";
+        payBtn.disabled = false;
+        payBtn.textContent = "پرداخت با بانک سامان";
+      }
+    });
+  </script>
+</body>
+</html>
