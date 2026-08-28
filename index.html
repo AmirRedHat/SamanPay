@@ -139,7 +139,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.95);
       z-index: 1000;
       justify-content: center;
       align-items: center;
@@ -191,6 +191,20 @@
       max-height: 200px;
       overflow: auto;
       white-space: pre-wrap;
+      text-align: left;
+      direction: ltr;
+    }
+
+    .success-message {
+      display: none;
+      margin-top: 16px;
+      padding: 12px 14px;
+      background: #f0fdf4;
+      color: #16a34a;
+      border-radius: 10px;
+      font-size: 13.5px;
+      border: 1px solid #bbf7d0;
+      text-align: center;
     }
   </style>
 </head>
@@ -211,6 +225,7 @@
     </form>
 
     <div class="error" id="errorBox"></div>
+    <div class="success-message" id="successBox"></div>
     <div class="debug-info" id="debugInfo"></div>
 
     <div class="note">
@@ -231,25 +246,77 @@
     const form = document.getElementById("paymentForm");
     const payBtn = document.getElementById("payBtn");
     const errorBox = document.getElementById("errorBox");
+    const successBox = document.getElementById("successBox");
     const debugInfo = document.getElementById("debugInfo");
     const loadingOverlay = document.getElementById("loadingOverlay");
 
     // Get the base URL for redirects
     const getBaseUrl = () => {
-      // In production, this should be your domain
-      // For development, you can use the current origin
       return window.location.origin;
     };
+
+    // Check if we're in development mode
+    const isDevelopment = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1' ||
+                          window.location.hostname === '192.168.1.222';
+
+    // Check for callback parameters on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const refNum = urlParams.get('RefNum');
+      const resNum = urlParams.get('ResNum');
+      const state = urlParams.get('State');
+      
+      if (refNum) {
+        // We're returning from the bank
+        handleCallback(refNum, resNum, state);
+      }
+    });
+
+    async function handleCallback(refNum, resNum, state) {
+      try {
+        const response = await fetch(`/callback?RefNum=${refNum}&ResNum=${resNum}&State=${state}`);
+        const result = await response.json();
+        
+        if (result.success) {
+          successBox.textContent = '✅ پرداخت با موفقیت انجام شد!';
+          successBox.style.display = 'block';
+          errorBox.style.display = 'none';
+          
+          if (isDevelopment) {
+            debugInfo.textContent = JSON.stringify(result.data, null, 2);
+            debugInfo.style.display = 'block';
+          }
+        } else {
+          errorBox.textContent = `❌ خطا در پرداخت: ${result.error}`;
+          errorBox.style.display = 'block';
+          successBox.style.display = 'none';
+        }
+      } catch (error) {
+        errorBox.textContent = `❌ خطا در پردازش بازگشت: ${error.message}`;
+        errorBox.style.display = 'block';
+      }
+    }
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       errorBox.style.display = "none";
+      successBox.style.display = "none";
       debugInfo.style.display = "none";
       payBtn.disabled = true;
       payBtn.textContent = "در حال انتقال به درگاه...";
 
       const amount = Number(document.getElementById("amount").value);
       const resNum = document.getElementById("resNum").value.trim() || null;
+
+      // Validate amount
+      if (!amount || amount <= 0) {
+        errorBox.textContent = "لطفاً مبلغ معتبر وارد کنید";
+        errorBox.style.display = "block";
+        payBtn.disabled = false;
+        payBtn.textContent = "پرداخت با بانک سامان";
+        return;
+      }
 
       try {
         // Step 1: Get token from your backend
@@ -260,31 +327,25 @@
           },
           body: JSON.stringify({
             amount: amount,
-            res_num: resNum,
-            redirect_url: `${getBaseUrl()}/callback`
+            res_num: resNum
           })
         });
 
+        const result = await response.json();
+
         if (!response.ok) {
-          let message = "خطا در ایجاد پرداخت";
-          try {
-            const err = await response.json();
-            message = err.detail || message;
-          } catch (_) {}
-          throw new Error(message);
+          throw new Error(result.error || "خطا در ایجاد پرداخت");
         }
 
-        const result = await response.json();
-        
         // Show debug info if in development
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        if (isDevelopment) {
           debugInfo.textContent = JSON.stringify(result, null, 2);
           debugInfo.style.display = 'block';
         }
 
         if (result.success && result.token) {
           // Step 2: Redirect to Saman Bank payment page with token
-          // The bank validates the referer, which will be your domain
+          // Using SendToken endpoint as per documentation
           const bankUrl = `https://sep.shaparak.ir/OnlinePG/SendToken?token=${result.token}`;
           
           console.log('Redirecting to bank:', bankUrl);
@@ -304,6 +365,7 @@
         }
 
       } catch (err) {
+        console.error('Error:', err);
         errorBox.textContent = err.message || "خطایی رخ داد. لطفا دوباره تلاش کنید.";
         errorBox.style.display = "block";
         payBtn.disabled = false;

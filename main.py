@@ -25,23 +25,24 @@ async def create_payment(request_data: RequestSchema):  # this implemented just 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head><title>Redirecting to Saman...</title></head>
-    <body>
-        <form id="samanForm" method="post" action="https://sep.shaparak.ir/OnlinePG/OnlinePG">
-            <input type="hidden" name="Token" value="{token}">
-            <input type="hidden" name="GetMethod" value="0">
-        </form>
-        <script>
-            document.getElementById('samanForm').submit();
-        </script>
-        <p>در حال انتقال به درگاه بانک سامان...</p>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html)
+    if token:
+        # Return token to client for redirect
+        return JSONResponse(
+            content={
+                "success": True,
+                "token": token,
+                "res_num": request_data.res_num,
+                "amount": request_data.amount
+            }
+        )
+    else:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "error": "Failed to get payment token"
+            }
+        )
 
 
 
