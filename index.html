@@ -192,7 +192,9 @@ form.addEventListener("submit", async (e) => {
             headers: {
                 "Content-Type": "application/json",
                 "Referer": "https://luluintown.com",
-                "Origin": "https://luluintown.com"
+                "Origin": "https://luluintown.com",
+                "X-Forwarded-Host": "luluintown.com",
+                "X-Forwarded-Proto": "https"
             },
             body: JSON.stringify({
                 amount: amount,
