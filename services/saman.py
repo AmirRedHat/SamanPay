@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 import httpx
+from decouple import config
 
 from config.saman import SamanConfig
 
@@ -18,7 +19,7 @@ class SamanService:
             "TerminalId": self.config.terminal_id,
             "Amount": amount,
             "ResNum": res_num,
-            "RedirectUrl": self.redirect_url,
+            "RedirectUrl": config("DOMAIN") + "/payment/callback",
         }
         print("Payload: ", payload)
 

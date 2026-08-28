@@ -46,7 +46,7 @@ async def create_payment(request_data: RequestSchema):  # this implemented just 
 
 
 
-@app.api_route("/callback", methods=["GET", "POST"])
+@app.api_route("/payment/callback", methods=["GET", "POST"])
 async def callback(request: Request):
     """
     SEP posts the result here after payment
@@ -120,7 +120,7 @@ async def callback(request: Request):
 
 @app.api_route("/", methods=["GET", "POST"])
 async def root(request: Request):
-    print("WORKING IN ROOT")
+    print("WORKING IN ROOT: ", request.method)
     if request.method == "GET":
         data = dict(request.query_params)
     else:
@@ -133,4 +133,45 @@ async def root(request: Request):
                 data = {}
                 
     print("data: ", data)
+    state = data.get("State") or data.get("state")
+    status = data.get("Status") or data.get("status")
+    ref_num = data.get("RefNum") or data.get("refNum")
+    res_num = data.get("ResNum") or data.get("resNum")
+    amount = data.get("Amount") or data.get("amount")
+    trace_no = data.get("TraceNo") or data.get("traceNo")
+    
+    try:
+        verify_result = await service.verify_transaction(ref_num)
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "message": f"Verify failed: {str(e)}",
+            "raw": data
+        })
+
+    result_code = verify_result.get("ResultCode") or verify_result.get("resultCode")
+    success = verify_result.get("Success") or verify_result.get("success")
+
+    if success is True or str(result_code) == "0":
+        # ===== SUCCESS =====
+        # Here you should:
+        # 1. Mark order as paid in your DB
+        # 2. Prevent double-spending (check if RefNum already processed)
+        return JSONResponse({
+            "success": True,
+            "message": "Payment verified successfully",
+            "ref_num": ref_num,
+            "res_num": res_num,
+            "amount": amount,
+            "trace_no": trace_no,
+            "verify": verify_result
+        })
+    else:
+        return JSONResponse({
+            "success": False,
+            "message": "Verification failed",
+            "verify": verify_result,
+            "raw": data
+        })
+    
     return FileResponse("index.html")
