@@ -1,7 +1,6 @@
-
-
 from fastapi import HTTPException
 import httpx
+from decouple import config
 
 from config.saman import SamanConfig
 
@@ -27,7 +26,11 @@ class SamanService:
             resp = await client.post(
                 "https://sep.shaparak.ir/onlinepg/onlinepg",
                 json=payload,
-                headers={"Content-Type": "application/json"}
+                headers={
+                    "Content-Type": "application/json",
+                    "Referer": config("DOMAIN"),
+                    "Origin": config("DOMAIN")
+                }
             )
             data = resp.json()
 
