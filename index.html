@@ -132,6 +132,39 @@
       text-align: center;
     }
 
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .loading-overlay.active {
+      display: flex;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e2e8f0;
+      border-top: 4px solid #2563eb;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
     .note {
       margin-top: 24px;
       padding: 14px 16px;
@@ -144,6 +177,20 @@
 
     .note strong {
       color: #1e293b;
+    }
+
+    .debug-info {
+      margin-top: 16px;
+      padding: 10px;
+      background: #1e293b;
+      color: #a5f3fc;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: monospace;
+      display: none;
+      max-height: 200px;
+      overflow: auto;
+      white-space: pre-wrap;
     }
   </style>
 </head>
@@ -164,6 +211,7 @@
     </form>
 
     <div class="error" id="errorBox"></div>
+    <div class="debug-info" id="debugInfo"></div>
 
     <div class="note">
       • مبلغ به <strong>ریال</strong> وارد شود.<br>
@@ -172,53 +220,97 @@
     </div>
   </div>
 
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <h3>در حال انتقال به درگاه پرداخت...</h3>
+    <p style="color: #64748b; margin-top: 8px;">لطفاً چند لحظه صبر کنید</p>
+  </div>
+
   <script>
     const form = document.getElementById("paymentForm");
-const payBtn = document.getElementById("payBtn");
-const errorBox = document.getElementById("errorBox");
+    const payBtn = document.getElementById("payBtn");
+    const errorBox = document.getElementById("errorBox");
+    const debugInfo = document.getElementById("debugInfo");
+    const loadingOverlay = document.getElementById("loadingOverlay");
 
-form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    errorBox.style.display = "none";
-    payBtn.disabled = true;
-    payBtn.textContent = "در حال انتقال به درگاه...";
+    // Get the base URL for redirects
+    const getBaseUrl = () => {
+      // In production, this should be your domain
+      // For development, you can use the current origin
+      return window.location.origin;
+    };
 
-    const amount = Number(document.getElementById("amount").value);
-    const resNum = document.getElementById("resNum").value.trim() || null;
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.style.display = "none";
+      debugInfo.style.display = "none";
+      payBtn.disabled = true;
+      payBtn.textContent = "در حال انتقال به درگاه...";
 
-    try {
+      const amount = Number(document.getElementById("amount").value);
+      const resNum = document.getElementById("resNum").value.trim() || null;
+
+      try {
+        // Step 1: Get token from your backend
         const response = await fetch("/saman/pay", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                amount: amount,
-                res_num: resNum
-            })
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount: amount,
+            res_num: resNum,
+            redirect_url: `${getBaseUrl()}/callback`
+          })
         });
 
         if (!response.ok) {
-            let message = "خطا در ایجاد پرداخت";
-            try {
-                const err = await response.json();
-                message = err.detail || message;
-            } catch (_) {}
-            throw new Error(message);
+          let message = "خطا در ایجاد پرداخت";
+          try {
+            const err = await response.json();
+            message = err.detail || message;
+          } catch (_) {}
+          throw new Error(message);
         }
 
-        const html = await response.text();
-        document.open();
-        document.write(html);
-        document.close();
+        const result = await response.json();
+        
+        // Show debug info if in development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          debugInfo.textContent = JSON.stringify(result, null, 2);
+          debugInfo.style.display = 'block';
+        }
 
-    } catch (err) {
+        if (result.success && result.token) {
+          // Step 2: Redirect to Saman Bank payment page with token
+          // The bank validates the referer, which will be your domain
+          const bankUrl = `https://sep.shaparak.ir/OnlinePG/SendToken?token=${result.token}`;
+          
+          console.log('Redirecting to bank:', bankUrl);
+          console.log('Token:', result.token);
+          console.log('ResNum:', result.res_num);
+          
+          // Show loading overlay
+          loadingOverlay.classList.add('active');
+          
+          // Redirect after a small delay to show loading state
+          setTimeout(() => {
+            window.location.href = bankUrl;
+          }, 500);
+          
+        } else {
+          throw new Error(result.error || 'توکن دریافت نشد');
+        }
+
+      } catch (err) {
         errorBox.textContent = err.message || "خطایی رخ داد. لطفا دوباره تلاش کنید.";
         errorBox.style.display = "block";
         payBtn.disabled = false;
         payBtn.textContent = "پرداخت با بانک سامان";
-    }
-});
+        loadingOverlay.classList.remove('active');
+      }
+    });
   </script>
 </body>
 </html>
