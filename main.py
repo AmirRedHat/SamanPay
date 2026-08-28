@@ -46,13 +46,21 @@ async def create_payment(request_data: RequestSchema):  # this implemented just 
 
 
 
-@app.post("/callback")
+@app.api_route("/callback", methods=["GET", "POST"])
 async def callback(request: Request):
     """
     SEP posts the result here after payment
     """
-    form = await request.form()
-    data = dict(form)
+    if request.method == "GET":
+        data = dict(request.query_params)
+    else:
+        form = await request.form()
+        data = dict(form)
+        if not data:
+            try:
+                data = await request.json()
+            except:
+                data = {}
 
     state = data.get("State") or data.get("state")
     status = data.get("Status") or data.get("status")
