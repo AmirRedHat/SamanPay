@@ -21,6 +21,7 @@ class SamanService:
             "ResNum": res_num,
             "RedirectUrl": self.redirect_url,
         }
+        print("Payload: ", payload)
 
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
@@ -28,11 +29,10 @@ class SamanService:
                 json=payload,
                 headers={
                     "Content-Type": "application/json",
-                    "Referer": config("DOMAIN"),
-                    "Origin": config("DOMAIN")
                 }
             )
             data = resp.json()
+            print("Response: ", data)
 
         if data.get("status") != 1 or not data.get("token"):
             raise HTTPException(
