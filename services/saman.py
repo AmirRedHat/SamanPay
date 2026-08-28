@@ -1,6 +1,5 @@
 from fastapi import HTTPException
 import httpx
-from decouple import config
 
 from config.saman import SamanConfig
 
