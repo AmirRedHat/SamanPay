@@ -346,7 +346,7 @@
         if (result.success && result.token) {
           // Step 2: Redirect to Saman Bank payment page with token
           // Using SendToken endpoint as per documentation
-          const bankUrl = `https://sep.shaparak.ir/OnlinePG/SendToken?token=${result.token}`;
+          const bankUrl = `https://sep.shaparak.ir/OnlinePG/SendToken?token=${result.token}&GetMethod=true`;
           
           console.log('Redirecting to bank:', bankUrl);
           console.log('Token:', result.token);

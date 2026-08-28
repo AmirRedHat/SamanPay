@@ -51,6 +51,7 @@ async def callback(request: Request):
     """
     SEP posts the result here after payment
     """
+    print("WORKING HERE")
     if request.method == "GET":
         data = dict(request.query_params)
     else:
