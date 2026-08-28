@@ -118,6 +118,19 @@ async def callback(request: Request):
             "raw": data
         })
 
-@app.get("/")
-async def root():
+@app.api_route("/", methods=["GET", "POST"])
+async def root(request: Request):
+    print("WORKING IN ROOT")
+    if request.method == "GET":
+        data = dict(request.query_params)
+    else:
+        form = await request.form()
+        data = dict(form)
+        if not data:
+            try:
+                data = await request.json()
+            except:
+                data = {}
+                
+    print("data: ", data)
     return FileResponse("index.html")
